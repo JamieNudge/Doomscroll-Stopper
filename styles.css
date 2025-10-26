@@ -18,6 +18,8 @@
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-accent: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
 }
 
 body {
@@ -78,7 +80,7 @@ header {
 /* Hero Section */
 .hero {
     padding: 4rem 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: var(--bg-white);
 }
 
@@ -248,7 +250,7 @@ header {
 .step-number {
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: var(--gradient-accent);
     color: var(--bg-white);
     border-radius: 50%;
     display: flex;
@@ -273,7 +275,7 @@ header {
 /* Download Section */
 .download {
     padding: 5rem 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: var(--bg-white);
     text-align: center;
 }
