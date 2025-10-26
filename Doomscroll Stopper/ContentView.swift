@@ -154,6 +154,20 @@ struct ContentView: View {
                                 }
                             }
                             
+                            // Helpful note about visual state
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "info.circle")
+                                        .foregroundColor(.blue)
+                                        .font(.caption)
+                                    Text("Apps will stay dimmed after the timer expires until you tap them. Gives you a chance to wait a little longer if you like.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            .padding(.top, 8)
+                            
                             Divider()
                             
                             // Countdown Timer or Break Complete Message
