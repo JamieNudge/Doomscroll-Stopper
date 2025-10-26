@@ -1,0 +1,12 @@
+{
+  "name": "doomscroll-stopper",
+  "version": "1.0.0",
+  "description": "An app that helps users make more productive use of their phones and free time.",
+  "homepage": "https://jamienudge.github.io/Doomscroll-Stopper/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JamieNudge/Doomscroll-Stopper.git"
+  },
+  "author": "JamieNudge",
+  "license": "MIT"
+}
