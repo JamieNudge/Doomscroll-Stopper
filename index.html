@@ -1,53 +1,63 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doomscroll-Stopper</title>
-    <meta name="description" content="An app that helps users make more productive use of their phones and free time.">
-    <meta property="og:title" content="Doomscroll-Stopper">
-    <meta property="og:description" content="An app that helps users make more productive use of their phones and free time.">
-    <meta property="og:url" content="https://jamienudge.github.io/Doomscroll-Stopper/">
-    <meta property="og:type" content="website">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
-            line-height: 1.6;
-            color: #333;
-        }
-        h1 {
-            color: #2c3e50;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 0.5rem;
-        }
-        a {
-            color: #3498db;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .links {
-            margin-top: 2rem;
-            padding: 1rem;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doomscroll-Stopper</title>
+  <meta name="description" content="An app that helps users make more productive use of their phones and free time.">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Main stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- Social / Open Graph (update when you have assets) -->
+  <meta property="og:title" content="Doomscroll-Stopper">
+  <meta property="og:description" content="An app that helps users make more productive use of their phones and free time.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jamienudge.github.io/Doomscroll-Stopper/">
 </head>
 <body>
-    <h1>Doomscroll-Stopper</h1>
-    <p>An app that helps users make more productive use of their phones and free time.</p>
-    
-    <div class="links">
+  <header class="site-header">
+    <div class="container">
+      <h1 class="site-title">Doomscroll‑Stopper</h1>
+      <p class="site-sub">Small interventions to help you break the doomscrolling habit and reclaim time.</p>
+      <nav class="top-links" aria-label="Important links">
+        <a class="btn ghost" href="#about">About</a>
+        <a class="btn" href="#download">Get the app</a>
+        <a class="btn ghost" href="https://github.com/JamieNudge/Doomscroll-Stopper">Source</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="hero">
+    <div class="container">
+      <section class="links" id="links">
         <h2>Links</h2>
         <ul>
-            <li><strong>Repository:</strong> <a href="https://github.com/JamieNudge/Doomscroll-Stopper">JamieNudge/Doomscroll-Stopper</a></li>
-            <li><strong>GitHub Pages:</strong> <a href="https://jamienudge.github.io/Doomscroll-Stopper/">https://jamienudge.github.io/Doomscroll-Stopper/</a></li>
+          <li><strong>Repository:</strong> <a href="https://github.com/JamieNudge/Doomscroll-Stopper">JamieNudge/Doomscroll-Stopper</a></li>
+          <li><strong>Demo / Pages:</strong> <a href="https://jamienudge.github.io/Doomscroll-Stopper/">Published site</a></li>
+          <li><strong>Design notes:</strong> <a href="#">Add your design doc or Figma here</a></li>
         </ul>
+      </section>
+
+      <section id="about" class="about">
+        <h2>About</h2>
+        <p>Simple patterns and prompts to interrupt compulsion. This site is a scaffold — I'll let you customise content, branding, and copy to suit Doomscroll‑Stopper.</p>
+      </section>
+
+      <section id="download" class="download">
+        <h2>Download</h2>
+        <p>Links to installs, builds, or a demo will go here.</p>
+      </section>
     </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Built by <a href="https://github.com/JamieNudge">JamieNudge</a> · <a href="https://jamienudge.github.io/Nudgetronic/">Nudgetronic theme</a></p>
+    </div>
+  </footer>
 </body>
 </html>
