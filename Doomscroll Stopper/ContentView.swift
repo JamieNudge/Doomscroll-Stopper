@@ -116,52 +116,56 @@ struct ContentView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Protection Status")
-                                    .font(.headline)
+                                    .font(.title2)
+                                    .fontWeight(.bold)
                                 Text(isProtectionEnabled ? "Active - Freeing you from the scroll of doom" : "Inactive")
-                                    .font(.subheadline)
+                                    .font(.body)
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
                             Toggle("", isOn: $isProtectionEnabled)
                                 .labelsHidden()
                                 .tint(.green)
+                                .scaleEffect(1.2)
                         }
                         
                         if isProtectionEnabled {
                             Divider()
                             
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 16) {
                                 HStack {
                                     Image(systemName: "app.fill")
                                         .foregroundColor(.green)
+                                        .font(.title3)
                                     if selectedApp.applicationTokens.count > 0 && selectedApp.categoryTokens.count > 0 {
                                         Text("\(selectedApp.applicationTokens.count) app\(selectedApp.applicationTokens.count == 1 ? "" : "s") + \(selectedApp.categoryTokens.count) categor\(selectedApp.categoryTokens.count == 1 ? "y" : "ies") blocked")
-                                            .font(.subheadline)
+                                            .font(.body)
                                     } else if selectedApp.applicationTokens.count > 0 {
                                         Text("\(selectedApp.applicationTokens.count) app\(selectedApp.applicationTokens.count == 1 ? "" : "s") blocked")
-                                            .font(.subheadline)
+                                            .font(.body)
                                     } else {
                                         Text("\(selectedApp.categoryTokens.count) categor\(selectedApp.categoryTokens.count == 1 ? "y" : "ies") blocked")
-                                            .font(.subheadline)
+                                            .font(.body)
                                     }
                                 }
                                 
                                 HStack {
                                     Image(systemName: "clock.fill")
                                         .foregroundColor(.green)
+                                        .font(.title3)
                                     Text("5-minute wait to access")
-                                        .font(.subheadline)
+                                        .font(.body)
                                 }
                             }
                             
                             // Helpful note about visual state
                             VStack(alignment: .leading, spacing: 8) {
-                                HStack(alignment: .top, spacing: 8) {
+                                HStack(alignment: .top, spacing: 10) {
                                     Image(systemName: "info.circle")
                                         .foregroundColor(.blue)
-                                        .font(.caption)
+                                        .font(.body)
                                     Text("Apps will stay dimmed after the timer expires until you tap them. Gives you a chance to wait a little longer if you like.")
-                                        .font(.caption)
+                                        .font(.subheadline)
                                         .foregroundColor(.secondary)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
@@ -171,28 +175,28 @@ struct ContentView: View {
                             Divider()
                             
                             // Countdown Timer or Break Complete Message
-                            VStack(spacing: 8) {
+                            VStack(spacing: 12) {
                                 if remainingSeconds > 0 {
                                     Text("Time Remaining")
-                                        .font(.caption)
+                                        .font(.body)
                                         .foregroundColor(.secondary)
                                     
                                     Text(formatTime(remainingSeconds))
-                                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                                        .font(.system(size: 60, weight: .bold, design: .rounded))
                                         .foregroundColor(.orange)
                                         .monospacedDigit()
                                 } else {
                                     // Break complete state
-                                    VStack(spacing: 16) {
+                                    VStack(spacing: 20) {
                                         Text("🌱")
-                                            .font(.system(size: 60))
+                                            .font(.system(size: 80))
                                         
                                         Text("Break Complete!")
-                                            .font(.system(size: 28, weight: .bold))
+                                            .font(.system(size: 34, weight: .bold))
                                             .foregroundColor(.green)
                                         
                                         Text("You stayed away for 5 minutes")
-                                            .font(.subheadline)
+                                            .font(.body)
                                             .foregroundColor(.secondary)
                                         
                                         // Action buttons
@@ -338,9 +342,9 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "leaf.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(red: 0.2, green: 0.8, blue: 0.3))
                     
-                    Text("Stop Doomscrolling")
+                    Text("Doomscroll Stopper")
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.white)
                 }
@@ -386,9 +390,10 @@ struct ContentView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.white.opacity(0.2))
-                            .foregroundColor(.white)
+                            .background(Color.white)
+                            .foregroundColor(Color.orange)
                             .cornerRadius(12)
+                            .fontWeight(.semibold)
                         }
                     }
                     
@@ -414,7 +419,7 @@ struct ContentView: View {
                         .fontWeight(.semibold)
                     }
                     .disabled(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty)
-                    .opacity(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty ? 0.5 : 1)
+                    .opacity(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty ? 0.7 : 1)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
@@ -543,8 +548,8 @@ struct ContentView: View {
                         Image(systemName: "chevron.right")
                     }
                     .padding()
-                    .background(Color.white.opacity(0.2))
-                    .foregroundColor(.white)
+                    .background(Color.white)
+                    .foregroundColor(Color.orange)
                     .cornerRadius(12)
                 }
                 
@@ -560,17 +565,22 @@ struct ContentView: View {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("ℹ️ You'll be asked to grant Screen Time permission when you tap to select apps. This is required for blocking to work.")
                     .font(.footnote)
                     .foregroundColor(.orange)
                     .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.white)
                     .cornerRadius(8)
                 
                 Text("💡 Tip: Start with your biggest distractions. You can always change this later.")
                     .font(.footnote)
                     .foregroundColor(.white.opacity(0.7))
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(8)
             }
             .padding(.top, 8)
         }
