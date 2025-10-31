@@ -1075,7 +1075,7 @@ struct ContentView: View {
         // Create notification content
         let content = UNMutableNotificationContent()
         content.title = "Break complete! 🌱"
-        content.body = "Your doomscroll break is over. Apps are now accessible."
+        content.body = "Your break is complete! Ready to go another 5 minutes?"
         content.sound = .default
         
         // Trigger after 5 minutes (300 seconds)
