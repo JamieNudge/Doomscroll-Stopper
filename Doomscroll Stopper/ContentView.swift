@@ -137,16 +137,8 @@ struct ContentView: View {
                                     Image(systemName: "app.fill")
                                         .foregroundColor(.green)
                                         .font(.title3)
-                                    if selectedApp.applicationTokens.count > 0 && selectedApp.categoryTokens.count > 0 {
-                                        Text("\(selectedApp.applicationTokens.count) app\(selectedApp.applicationTokens.count == 1 ? "" : "s") + \(selectedApp.categoryTokens.count) categor\(selectedApp.categoryTokens.count == 1 ? "y" : "ies") blocked")
-                                            .font(.body)
-                                    } else if selectedApp.applicationTokens.count > 0 {
-                                        Text("\(selectedApp.applicationTokens.count) app\(selectedApp.applicationTokens.count == 1 ? "" : "s") blocked")
-                                            .font(.body)
-                                    } else {
-                                        Text("\(selectedApp.categoryTokens.count) categor\(selectedApp.categoryTokens.count == 1 ? "y" : "ies") blocked")
-                                            .font(.body)
-                                    }
+                                    Text(blockedItemsText())
+                                        .font(.body)
                                 }
                                 
                                 HStack {
@@ -283,9 +275,12 @@ struct ContentView: View {
                     
                     Spacer(minLength: 40)
                 }
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
             .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationViewStyle(.stack)
         .onAppear {
             // Check for expired shield when main view appears
             if isProtectionEnabled {
@@ -418,12 +413,14 @@ struct ContentView: View {
                         .cornerRadius(12)
                         .fontWeight(.semibold)
                     }
-                    .disabled(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty)
-                    .opacity(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty ? 0.7 : 1)
+                    .disabled(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty && selectedApp.webDomainTokens.isEmpty)
+                    .opacity(wizardStep == 2 && selectedApp.applicationTokens.isEmpty && selectedApp.categoryTokens.isEmpty && selectedApp.webDomainTokens.isEmpty ? 0.7 : 1)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
             }
+            .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $showingAppPicker) {
             NavigationView {
@@ -602,16 +599,8 @@ struct ContentView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "app.fill")
                             .foregroundColor(.orange)
-                        if selectedApp.applicationTokens.count > 0 && selectedApp.categoryTokens.count > 0 {
-                            Text("Selected: \(selectedApp.applicationTokens.count) app\(selectedApp.applicationTokens.count == 1 ? "" : "s") + \(selectedApp.categoryTokens.count) categor\(selectedApp.categoryTokens.count == 1 ? "y" : "ies")")
-                                .foregroundColor(.orange)
-                        } else if selectedApp.applicationTokens.count > 0 {
-                            Text("Selected: \(selectedApp.applicationTokens.count) app\(selectedApp.applicationTokens.count == 1 ? "" : "s")")
-                                .foregroundColor(.orange)
-                        } else {
-                            Text("Selected: \(selectedApp.categoryTokens.count) categor\(selectedApp.categoryTokens.count == 1 ? "y" : "ies")")
-                                .foregroundColor(.orange)
-                        }
+                        Text(step3SelectionText())
+                            .foregroundColor(.orange)
                     }
                     
                     HStack(spacing: 12) {
@@ -641,6 +630,34 @@ struct ContentView: View {
     }
     
     // MARK: - Helper Functions
+    private func step3SelectionText() -> String {
+        var parts: [String] = []
+        
+        let appCount = selectedApp.applicationTokens.count
+        let catCount = selectedApp.categoryTokens.count
+        let webCount = selectedApp.webDomainTokens.count
+        
+        if appCount > 0 {
+            parts.append("\(appCount) app\(appCount == 1 ? "" : "s")")
+        }
+        if catCount > 0 {
+            parts.append("\(catCount) categor\(catCount == 1 ? "y" : "ies")")
+        }
+        if webCount > 0 {
+            parts.append("\(webCount) website\(webCount == 1 ? "" : "s")")
+        }
+        
+        if parts.isEmpty {
+            return "Selected: Nothing"
+        } else if parts.count == 1 {
+            return "Selected: \(parts[0])"
+        } else if parts.count == 2 {
+            return "Selected: \(parts[0]) + \(parts[1])"
+        } else {
+            return "Selected: \(parts[0]) + \(parts[1]) + \(parts[2])"
+        }
+    }
+    
     private func activateProtection() {
         // Immediate state changes for fast transition
         hasCompletedSetup = true
@@ -660,6 +677,34 @@ struct ContentView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 startLeafAnimation()
             }
+        }
+    }
+    
+    private func blockedItemsText() -> String {
+        var parts: [String] = []
+        
+        let appCount = selectedApp.applicationTokens.count
+        let catCount = selectedApp.categoryTokens.count
+        let webCount = selectedApp.webDomainTokens.count
+        
+        if appCount > 0 {
+            parts.append("\(appCount) app\(appCount == 1 ? "" : "s")")
+        }
+        if catCount > 0 {
+            parts.append("\(catCount) categor\(catCount == 1 ? "y" : "ies")")
+        }
+        if webCount > 0 {
+            parts.append("\(webCount) website\(webCount == 1 ? "" : "s")")
+        }
+        
+        if parts.isEmpty {
+            return "Nothing blocked"
+        } else if parts.count == 1 {
+            return "\(parts[0]) blocked"
+        } else if parts.count == 2 {
+            return "\(parts[0]) + \(parts[1]) blocked"
+        } else {
+            return "\(parts[0]) + \(parts[1]) + \(parts[2]) blocked"
         }
     }
     
@@ -693,8 +738,8 @@ struct ContentView: View {
             return
         }
         
-        guard !selectedApp.applicationTokens.isEmpty || !selectedApp.categoryTokens.isEmpty else {
-            print("[DOOMSCROLL] ERROR: No apps or categories selected!")
+        guard !selectedApp.applicationTokens.isEmpty || !selectedApp.categoryTokens.isEmpty || !selectedApp.webDomainTokens.isEmpty else {
+            print("[DOOMSCROLL] ERROR: No apps, categories, or web domains selected!")
             return
         }
         
@@ -702,6 +747,7 @@ struct ContentView: View {
         print("[DOOMSCROLL] 📊 Starting instant block protection...")
         print("[DOOMSCROLL] 📊 - Blocking \(selectedApp.applicationTokens.count) app(s)")
         print("[DOOMSCROLL] 📊 - Blocking \(selectedApp.categoryTokens.count) category(ies)")
+        print("[DOOMSCROLL] 📊 - Blocking \(selectedApp.webDomainTokens.count) web domain(s)")
         
         // Use the DEFAULT store (not named) - this is what Nudgetronic does
         let store = ManagedSettingsStore()
@@ -711,10 +757,11 @@ struct ContentView: View {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         store.shield.webDomainCategories = nil
+        store.shield.webDomains = nil
         
         print("[DOOMSCROLL] ✅ Cleared any previous shields")
         
-        // Now apply the new shields (apps and/or categories)
+        // Now apply the new shields (apps, categories, and/or web domains)
         print("[DOOMSCROLL] 📊 Applying new shields...")
         if !selectedApp.applicationTokens.isEmpty {
             store.shield.applications = selectedApp.applicationTokens
@@ -723,6 +770,10 @@ struct ContentView: View {
         if !selectedApp.categoryTokens.isEmpty {
             store.shield.applicationCategories = .specific(selectedApp.categoryTokens)
             print("[DOOMSCROLL] ✅ Applied category shields")
+        }
+        if !selectedApp.webDomainTokens.isEmpty {
+            store.shield.webDomains = selectedApp.webDomainTokens
+            print("[DOOMSCROLL] ✅ Applied web domain shields")
         }
         
         // Save block start time
@@ -784,6 +835,7 @@ struct ContentView: View {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         store.shield.webDomainCategories = nil
+        store.shield.webDomains = nil
         
         print("[DOOMSCROLL] ✅ Protection stopped - shield cleared")
         print("[DOOMSCROLL] 📊 Apps should now appear unblocked in UI")
@@ -906,6 +958,7 @@ struct ContentView: View {
             let store = ManagedSettingsStore()
             store.shield.applications = nil
             store.shield.applicationCategories = nil
+            store.shield.webDomains = nil
             print("[DOOMSCROLL] ✅ Shields cleared")
             
             // Mark that shield was cleared (don't reset to current time, set to 0)
@@ -989,6 +1042,7 @@ struct ContentView: View {
             store.shield.applications = nil
             store.shield.applicationCategories = nil
             store.shield.webDomainCategories = nil
+            store.shield.webDomains = nil
             
             // Also clear App Group data
             if let suite = UserDefaults(suiteName: appGroupIdentifier) {
