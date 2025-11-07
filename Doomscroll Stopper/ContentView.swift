@@ -855,6 +855,18 @@ struct ContentView: View {
             // INSTANT BLOCK MODE: Apply shields immediately
             print("[DOOMSCROLL] 📊 Mode: INSTANT BLOCK - Applying shields now...")
             
+            // Save block start time FIRST (before applying shields)
+            let startTime = Date().timeIntervalSince1970
+            if let suite = UserDefaults(suiteName: appGroupIdentifier) {
+                suite.set(startTime, forKey: "blockStartTime")
+                suite.synchronize()
+                print("[DOOMSCROLL] ✅ Saved blockStartTime: \(startTime)")
+            }
+            
+            // Small delay to ensure UserDefaults sync completes
+            Thread.sleep(forTimeInterval: 0.1)
+            
+            // Now apply shields (shield will read the blockStartTime we just set)
             if !selectedApp.applicationTokens.isEmpty {
                 store.shield.applications = selectedApp.applicationTokens
                 print("[DOOMSCROLL] ✅ Applied app shields")
@@ -866,14 +878,6 @@ struct ContentView: View {
             if !selectedApp.webDomainTokens.isEmpty {
                 store.shield.webDomains = selectedApp.webDomainTokens
                 print("[DOOMSCROLL] ✅ Applied web domain shields")
-            }
-            
-            // Save block start time
-            let startTime = Date().timeIntervalSince1970
-            if let suite = UserDefaults(suiteName: appGroupIdentifier) {
-                suite.set(startTime, forKey: "blockStartTime")
-                suite.synchronize()
-                print("[DOOMSCROLL] ✅ Saved blockStartTime: \(startTime)")
             }
             
             print("[DOOMSCROLL] ✅ Apps blocked instantly! Shield will auto-clear after 5 minutes")

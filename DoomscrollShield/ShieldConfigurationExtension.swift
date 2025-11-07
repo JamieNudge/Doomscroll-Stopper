@@ -47,6 +47,12 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         print("[SHIELD] 📊 Elapsed seconds: \(Int(elapsedSeconds))")
         print("[SHIELD] 📊 Remaining seconds: \(remainingSeconds)")
         
+        // Debug: Check if blockStartTime is actually set
+        if blockStartTime == 0 {
+            print("[SHIELD] ⚠️ WARNING: blockStartTime is 0! Shield will show 0:00")
+            print("[SHIELD] ⚠️ This means blockStartTime wasn't set before shield was applied")
+        }
+        
         // If 5 minutes have passed, clear the shield NOW
         if blockStartTime > 0 && elapsedSeconds >= 300 {
             print("[SHIELD] ⏰ 5 minutes elapsed - TIME TO CLEAR!")
@@ -67,7 +73,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             // (This is the KEY to making iOS update the home screen icons!)
             let center = DeviceActivityCenter()
             print("[SHIELD] 📊 Stopping DeviceActivity monitoring to refresh visual state...")
-            center.stopMonitoring([DeviceActivityName("doomscrollProtection")])
+            center.stopMonitoring([DeviceActivityName("doomscrollProtection"), DeviceActivityName("doomscrollDelayedBlock")])
             print("[SHIELD] ✅ Monitoring stopped - iOS should refresh icon states now")
             
             // Mark as cleared and signal main app to update state
