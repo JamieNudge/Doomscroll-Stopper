@@ -15,6 +15,7 @@ struct ContentView: View {
     // MARK: - State Variables
     @AppStorage("hasCompletedSetup") private var hasCompletedSetup = false
     @AppStorage("isProtectionEnabled") private var isProtectionEnabled = false
+    @AppStorage("blockMode") private var blockMode: String = "instant" // "instant" or "delayed"
     @State private var selectedApp = FamilyActivitySelection()
     @State private var showingWizard = false
     @State private var wizardStep = 1
@@ -35,6 +36,7 @@ struct ContentView: View {
     // Timer for checking shield expiry
     @State private var shieldCheckTimer: Timer?
     @State private var remainingSeconds: Int = 0
+    @State private var allowanceSeconds: Int = 0  // For delayed mode allowance countdown
     
     private let appGroupIdentifier = "group.Me.DoomscrollStopper"
     
@@ -74,7 +76,8 @@ struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 checkForRestartSignal()
-                // Check immediately when app becomes active
+                // Update shield status immediately when app becomes active
+                updateCountdown()
                 checkAndRemoveExpiredShield()
                 startShieldCheckTimer()
             } else if phase == .background {
@@ -137,7 +140,7 @@ struct ContentView: View {
                                     Image(systemName: "app.fill")
                                         .foregroundColor(.green)
                                         .font(.title3)
-                                    Text(blockedItemsText())
+                                    Text(statusItemsText())
                                         .font(.body)
                                 }
                                 
@@ -145,7 +148,7 @@ struct ContentView: View {
                                     Image(systemName: "clock.fill")
                                         .foregroundColor(.green)
                                         .font(.title3)
-                                    Text("5-minute wait to access")
+                                    Text(blockMode == "instant" ? "5-minute wait to access" : "5 min use, then 5 min wait")
                                         .font(.body)
                                 }
                             }
@@ -166,9 +169,31 @@ struct ContentView: View {
                             
                             Divider()
                             
-                            // Countdown Timer or Break Complete Message
+                            // Countdown Timer, Allowance Timer, or Break Complete Message
                             VStack(spacing: 12) {
-                                if remainingSeconds > 0 {
+                                if blockMode == "delayed" && allowanceSeconds > 0 && remainingSeconds == 0 {
+                                    // Delayed mode - allowance countdown
+                                    VStack(spacing: 20) {
+                                        Text("⏳")
+                                            .font(.system(size: 80))
+                                        
+                                        Text("Time Until Block")
+                                            .font(.body)
+                                            .foregroundColor(.secondary)
+                                        
+                                        Text(formatTime(allowanceSeconds))
+                                            .font(.system(size: 60, weight: .bold, design: .rounded))
+                                            .foregroundColor(.blue)
+                                            .monospacedDigit()
+                                        
+                                        Text("You have \(formatTime(allowanceSeconds)) to use your selected app")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal)
+                                    }
+                                } else if remainingSeconds > 0 {
+                                    // Active block - show countdown
                                     Text("Time Remaining")
                                         .font(.body)
                                         .foregroundColor(.secondary)
@@ -178,7 +203,7 @@ struct ContentView: View {
                                         .foregroundColor(.orange)
                                         .monospacedDigit()
                                 } else {
-                                    // Break complete state
+                                    // Break complete state (instant mode or delayed mode after cooldown)
                                     VStack(spacing: 20) {
                                         Text("🌱")
                                             .font(.system(size: 80))
@@ -187,19 +212,19 @@ struct ContentView: View {
                                             .font(.system(size: 34, weight: .bold))
                                             .foregroundColor(.green)
                                         
-                                        Text("You stayed away for 5 minutes")
+                                        Text(blockMode == "instant" ? "You stayed away for 5 minutes" : "Cooldown complete!")
                                             .font(.body)
                                             .foregroundColor(.secondary)
                                         
                                         // Action buttons
                                         VStack(spacing: 12) {
                                             Button(action: {
-                                                // Restart protection for another 5 minutes
+                                                // Restart protection for another round
                                                 startMonitoring()
                                             }) {
                                                 HStack {
                                                     Image(systemName: "arrow.clockwise")
-                                                    Text("Go Another 5 Minutes")
+                                                    Text(blockMode == "instant" ? "Go Another 5 Minutes" : "Start Another Round")
                                                 }
                                                 .font(.headline)
                                                 .foregroundColor(.white)
@@ -247,8 +272,12 @@ struct ContentView: View {
                             .foregroundColor(.white)
                         
                         FeatureRow(icon: "leaf.fill", title: "Pick Your Apps", description: "Choose one or more apps you want to limit")
-                        FeatureRow(icon: "shield.fill", title: "Instant Block", description: "Apps are blocked immediately when you try to open them")
-                        FeatureRow(icon: "clock.fill", title: "5-Minute Cooldown", description: "Wait 5 minutes before you can access them again")
+                        FeatureRow(icon: "shield.fill", 
+                                 title: blockMode == "instant" ? "Instant Block" : "5-Minute Allowance",
+                                 description: blockMode == "instant" ? "Apps are blocked immediately when you try to open them" : "5-minute countdown starts when activated")
+                        FeatureRow(icon: "clock.fill", 
+                                 title: "5-Minute Block",
+                                 description: blockMode == "instant" ? "Wait 5 minutes before you can access them again" : "After allowance expires, apps blocked for 5 minutes")
                     }
                     .padding()
                     .background(Color.white.opacity(0.2))
@@ -282,6 +311,9 @@ struct ContentView: View {
         }
         .navigationViewStyle(.stack)
         .onAppear {
+            // Load previously selected app
+            loadSelectedApp()
+            
             // Check for expired shield when main view appears
             if isProtectionEnabled {
                 checkIfShieldExpiredAndPrompt()
@@ -296,10 +328,9 @@ struct ContentView: View {
                 startMonitoring()
             } else {
                 stopMonitoring()
-                // Reset to wizard when protection is disabled
+                // Reset to wizard when protection is disabled (but keep selectedApp)
                 hasCompletedSetup = false
                 wizardStep = 1
-                selectedApp = FamilyActivitySelection()
             }
         }
     }
@@ -448,53 +479,61 @@ struct ContentView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.white)
             
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Here's how it works:")
-                    .font(.body)
-                    .foregroundColor(.orange)
-                
-                HStack(alignment: .top, spacing: 12) {
-                    Text("🌱")
-                        .font(.title2)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Choose one or more apps")
-                            .fontWeight(.semibold)
-                            .foregroundColor(.orange)
-                        Text("Pick the apps that pull you in the most")
-                            .font(.subheadline)
-                            .foregroundColor(.orange.opacity(0.8))
+            Text("Choose your blocking mode:")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.top, 8)
+            
+            // Blocking Mode Selection
+            VStack(spacing: 12) {
+                // Instant Block Option
+                Button(action: {
+                    blockMode = "instant"
+                }) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: blockMode == "instant" ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundColor(blockMode == "instant" ? .green : .orange)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Instant Block")
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                            Text("App blocked immediately for 5 minutes")
+                                .font(.subheadline)
+                                .foregroundColor(.orange.opacity(0.8))
+                        }
+                        Spacer()
                     }
+                    .padding()
+                    .background(blockMode == "instant" ? Color.white : Color.white.opacity(0.5))
+                    .cornerRadius(12)
                 }
                 
-                HStack(alignment: .top, spacing: 12) {
-                    Text("🛡️")
-                        .font(.title2)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Instant block")
-                            .fontWeight(.semibold)
-                            .foregroundColor(.orange)
-                        Text("The app is blocked immediately when you try to open it")
-                            .font(.subheadline)
-                            .foregroundColor(.orange.opacity(0.8))
+                // Delayed Block Option
+                Button(action: {
+                    blockMode = "delayed"
+                }) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: blockMode == "delayed" ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .foregroundColor(blockMode == "delayed" ? .green : .orange)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("5 Minutes Use, Then Block")
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                            Text("5-minute countdown starts when activated, then blocked for 5 minutes")
+                                .font(.subheadline)
+                                .foregroundColor(.orange.opacity(0.8))
+                        }
+                        Spacer()
                     }
-                }
-                
-                HStack(alignment: .top, spacing: 12) {
-                    Text("⏱️")
-                        .font(.title2)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("5-minute cooldown")
-                            .fontWeight(.semibold)
-                            .foregroundColor(.orange)
-                        Text("You must wait 5 minutes before accessing the app again")
-                            .font(.subheadline)
-                            .foregroundColor(.orange.opacity(0.8))
-                    }
+                    .padding()
+                    .background(blockMode == "delayed" ? Color.white : Color.white.opacity(0.5))
+                    .cornerRadius(12)
                 }
             }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
             
             Text("This is a voluntary tool to help you build healthier habits. You can turn it off anytime.")
                 .font(.footnote)
@@ -606,14 +645,14 @@ struct ContentView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "shield.fill")
                             .foregroundColor(.orange)
-                        Text("Block: Instant when activated")
+                        Text(blockMode == "instant" ? "Block: Instant when activated" : "Allowance: 5-minute countdown")
                             .foregroundColor(.orange)
                     }
                     
                     HStack(spacing: 12) {
                         Image(systemName: "clock.fill")
                             .foregroundColor(.orange)
-                        Text("Cooldown: 5 minutes before access")
+                        Text(blockMode == "instant" ? "Block: 5 minutes before access" : "Block: 5 minutes after allowance")
                             .foregroundColor(.orange)
                     }
                 }
@@ -680,6 +719,44 @@ struct ContentView: View {
         }
     }
     
+    private func statusItemsText() -> String {
+        var parts: [String] = []
+        
+        let appCount = selectedApp.applicationTokens.count
+        let catCount = selectedApp.categoryTokens.count
+        let webCount = selectedApp.webDomainTokens.count
+        
+        if appCount > 0 {
+            parts.append("\(appCount) app\(appCount == 1 ? "" : "s")")
+        }
+        if catCount > 0 {
+            parts.append("\(catCount) categor\(catCount == 1 ? "y" : "ies")")
+        }
+        if webCount > 0 {
+            parts.append("\(webCount) website\(webCount == 1 ? "" : "s")")
+        }
+        
+        // Determine status text based on mode and current state
+        let statusWord: String
+        if blockMode == "delayed" && allowanceSeconds > 0 {
+            // During allowance period - not blocked yet
+            statusWord = "selected for block"
+        } else {
+            // Instant mode or during block period
+            statusWord = "blocked"
+        }
+        
+        if parts.isEmpty {
+            return "Nothing \(statusWord)"
+        } else if parts.count == 1 {
+            return "\(parts[0]) \(statusWord)"
+        } else if parts.count == 2 {
+            return "\(parts[0]) + \(parts[1]) \(statusWord)"
+        } else {
+            return "\(parts[0]) + \(parts[1]) + \(parts[2]) \(statusWord)"
+        }
+    }
+    
     private func blockedItemsText() -> String {
         var parts: [String] = []
         
@@ -708,6 +785,18 @@ struct ContentView: View {
         }
     }
     
+    private func loadSelectedApp() {
+        guard let suite = UserDefaults(suiteName: appGroupIdentifier),
+              let data = suite.data(forKey: "selectedApp"),
+              let loadedSelection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else {
+            print("[DOOMSCROLL] No previous app selection found")
+            return
+        }
+        
+        selectedApp = loadedSelection
+        print("[DOOMSCROLL] ✓ Loaded previous app selection: \(selectedApp.applicationTokens.count) app(s)")
+    }
+    
     private func saveToAppGroup() {
         guard let suite = UserDefaults(suiteName: appGroupIdentifier) else {
             print("[DOOMSCROLL] ERROR: Could not access App Group")
@@ -718,6 +807,7 @@ struct ContentView: View {
         print("[DOOMSCROLL] - Apps selected: \(selectedApp.applicationTokens.count)")
         print("[DOOMSCROLL] - Categories selected: \(selectedApp.categoryTokens.count)")
         print("[DOOMSCROLL] - Protection enabled: \(isProtectionEnabled)")
+        print("[DOOMSCROLL] - Block mode: \(blockMode)")
         
         if let data = try? JSONEncoder().encode(selectedApp) {
             suite.set(data, forKey: "selectedApp")
@@ -727,6 +817,7 @@ struct ContentView: View {
         }
         
         suite.set(isProtectionEnabled, forKey: "isProtectionEnabled")
+        suite.set(blockMode, forKey: "blockMode")
         suite.synchronize()
         
         print("[DOOMSCROLL] App Group save complete")
@@ -744,78 +835,110 @@ struct ContentView: View {
         }
         
         print("[DOOMSCROLL] 📊 ========================================")
-        print("[DOOMSCROLL] 📊 Starting instant block protection...")
-        print("[DOOMSCROLL] 📊 - Blocking \(selectedApp.applicationTokens.count) app(s)")
-        print("[DOOMSCROLL] 📊 - Blocking \(selectedApp.categoryTokens.count) category(ies)")
-        print("[DOOMSCROLL] 📊 - Blocking \(selectedApp.webDomainTokens.count) web domain(s)")
+        print("[DOOMSCROLL] 📊 Starting protection in \(blockMode) mode...")
+        print("[DOOMSCROLL] 📊 - Monitoring \(selectedApp.applicationTokens.count) app(s)")
+        print("[DOOMSCROLL] 📊 - Monitoring \(selectedApp.categoryTokens.count) category(ies)")
+        print("[DOOMSCROLL] 📊 - Monitoring \(selectedApp.webDomainTokens.count) web domain(s)")
         
-        // Use the DEFAULT store (not named) - this is what Nudgetronic does
         let store = ManagedSettingsStore()
+        let center = DeviceActivityCenter()
         
-        // IMPORTANT: Clear any previous shields first (in case user changed apps)
+        // Always clear previous shields first
         print("[DOOMSCROLL] 📊 Clearing any previous shields...")
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         store.shield.webDomainCategories = nil
         store.shield.webDomains = nil
-        
         print("[DOOMSCROLL] ✅ Cleared any previous shields")
         
-        // Now apply the new shields (apps, categories, and/or web domains)
-        print("[DOOMSCROLL] 📊 Applying new shields...")
-        if !selectedApp.applicationTokens.isEmpty {
-            store.shield.applications = selectedApp.applicationTokens
-            print("[DOOMSCROLL] ✅ Applied app shields")
-        }
-        if !selectedApp.categoryTokens.isEmpty {
-            store.shield.applicationCategories = .specific(selectedApp.categoryTokens)
-            print("[DOOMSCROLL] ✅ Applied category shields")
-        }
-        if !selectedApp.webDomainTokens.isEmpty {
-            store.shield.webDomains = selectedApp.webDomainTokens
-            print("[DOOMSCROLL] ✅ Applied web domain shields")
-        }
-        
-        // Save block start time
-        let startTime = Date().timeIntervalSince1970
-        if let suite = UserDefaults(suiteName: appGroupIdentifier) {
-            suite.set(startTime, forKey: "blockStartTime")
-            suite.synchronize()
-            print("[DOOMSCROLL] ✅ Saved blockStartTime: \(startTime)")
-        }
-        
-        print("[DOOMSCROLL] ✅ Apps/categories blocked instantly!")
-        print("[DOOMSCROLL] ✅ Shield is now active and persistent")
-        print("[DOOMSCROLL] 📊 Shield will auto-clear after 5 minutes (300 seconds)")
-        
-        // Start DeviceActivity monitoring (needed for visual state management)
-        // We use an all-day schedule like Nudgetronic, but without threshold events
-        let center = DeviceActivityCenter()
-        
-        let schedule = DeviceActivitySchedule(
-            intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: DateComponents(hour: 23, minute: 59),
-            repeats: true
-        )
-        
-        print("[DOOMSCROLL] 📊 Starting DeviceActivity monitoring for visual state management...")
-        
-        do {
-            try center.startMonitoring(
-                DeviceActivityName("doomscrollProtection"),
-                during: schedule
+        if blockMode == "instant" {
+            // INSTANT BLOCK MODE: Apply shields immediately
+            print("[DOOMSCROLL] 📊 Mode: INSTANT BLOCK - Applying shields now...")
+            
+            if !selectedApp.applicationTokens.isEmpty {
+                store.shield.applications = selectedApp.applicationTokens
+                print("[DOOMSCROLL] ✅ Applied app shields")
+            }
+            if !selectedApp.categoryTokens.isEmpty {
+                store.shield.applicationCategories = .specific(selectedApp.categoryTokens)
+                print("[DOOMSCROLL] ✅ Applied category shields")
+            }
+            if !selectedApp.webDomainTokens.isEmpty {
+                store.shield.webDomains = selectedApp.webDomainTokens
+                print("[DOOMSCROLL] ✅ Applied web domain shields")
+            }
+            
+            // Save block start time
+            let startTime = Date().timeIntervalSince1970
+            if let suite = UserDefaults(suiteName: appGroupIdentifier) {
+                suite.set(startTime, forKey: "blockStartTime")
+                suite.synchronize()
+                print("[DOOMSCROLL] ✅ Saved blockStartTime: \(startTime)")
+            }
+            
+            print("[DOOMSCROLL] ✅ Apps blocked instantly! Shield will auto-clear after 5 minutes")
+            
+            // Start simple monitoring for visual state management (no thresholds)
+            let schedule = DeviceActivitySchedule(
+                intervalStart: DateComponents(hour: 0, minute: 0),
+                intervalEnd: DateComponents(hour: 23, minute: 59),
+                repeats: true
             )
-            print("[DOOMSCROLL] ✅ DeviceActivity monitoring started")
-            print("[DOOMSCROLL] 📊 Stopping/restarting this will refresh visual state")
-        } catch {
-            print("[DOOMSCROLL] ❌ DeviceActivity monitoring failed: \(error)")
+            
+            do {
+                try center.startMonitoring(
+                    DeviceActivityName("doomscrollProtection"),
+                    during: schedule
+                )
+                print("[DOOMSCROLL] ✅ DeviceActivity monitoring started (visual state only)")
+            } catch {
+                print("[DOOMSCROLL] ❌ DeviceActivity monitoring failed: \(error)")
+            }
+            
+            // Schedule notification and start timer for instant mode
+            scheduleVisualRefreshNotification()
+            startShieldCheckTimer()
+            
+        } else {
+            // DELAYED BLOCK MODE: 5-minute allowance, then 5-minute block
+            print("[DOOMSCROLL] 📊 Mode: DELAYED BLOCK - Starting 5-minute allowance...")
+            
+            // Set allowance start time for UI countdown
+            let allowanceStartTime = Date().timeIntervalSince1970
+            if let suite = UserDefaults(suiteName: appGroupIdentifier) {
+                suite.set(allowanceStartTime, forKey: "allowanceStartTime")
+                suite.set("delayed_allowance", forKey: "delayedBlockPhase")  // Track phase
+                suite.synchronize()
+                print("[DOOMSCROLL] ✅ Saved allowanceStartTime: \(allowanceStartTime)")
+            }
+            
+            // Calculate time 5 minutes from now (include seconds for precision)
+            let fiveMinutesLater = Date().addingTimeInterval(300)
+            let components = Calendar.current.dateComponents([.hour, .minute, .second], from: fiveMinutesLater)
+            
+            print("[DOOMSCROLL] 📊 Scheduling for \(components.hour!):\(components.minute!):\(components.second!) (exactly 5 minutes)")
+            
+            // Schedule activity that starts in 5 minutes - intervalDidStart will apply shield
+            let schedule = DeviceActivitySchedule(
+                intervalStart: components,
+                intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
+                repeats: false  // One-time event
+            )
+            
+            do {
+                try center.startMonitoring(
+                    DeviceActivityName("doomscrollDelayedBlock"),
+                    during: schedule
+                )
+                print("[DOOMSCROLL] ✅ DeviceActivity scheduled to start at \(components.hour!):\(components.minute!):\(components.second!)")
+                print("[DOOMSCROLL] 📊 Shield will apply automatically in background after 5 minutes")
+            } catch {
+                print("[DOOMSCROLL] ❌ DeviceActivity monitoring failed: \(error)")
+            }
+            
+            // Start timer to track allowance countdown (for UI only)
+            startShieldCheckTimer()
         }
-        
-        // Schedule a background notification for 5 minutes to trigger visual refresh
-        scheduleVisualRefreshNotification()
-        
-        // Start the timer to check for shield expiry
-        startShieldCheckTimer()
     }
     
     private func stopMonitoring() {
@@ -826,7 +949,7 @@ struct ContentView: View {
         // Stop DeviceActivity monitoring FIRST (triggers visual refresh)
         let center = DeviceActivityCenter()
         print("[DOOMSCROLL] 📊 Stopping DeviceActivity monitoring...")
-        center.stopMonitoring([DeviceActivityName("doomscrollProtection")])
+        center.stopMonitoring([DeviceActivityName("doomscrollProtection"), DeviceActivityName("doomscrollDelayedBlock")])
         print("[DOOMSCROLL] ✅ Monitoring stopped")
         
         // Clear shields using the DEFAULT store (matching Nudgetronic)
@@ -836,6 +959,17 @@ struct ContentView: View {
         store.shield.applicationCategories = nil
         store.shield.webDomainCategories = nil
         store.shield.webDomains = nil
+        
+        // Clear allowance and block times
+        if let suite = UserDefaults(suiteName: appGroupIdentifier) {
+            suite.set(0, forKey: "allowanceStartTime")
+            suite.set(0, forKey: "blockStartTime")
+            suite.synchronize()
+        }
+        allowanceSeconds = 0
+        
+        // Cancel any pending notifications
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         
         print("[DOOMSCROLL] ✅ Protection stopped - shield cleared")
         print("[DOOMSCROLL] 📊 Apps should now appear unblocked in UI")
@@ -958,6 +1092,7 @@ struct ContentView: View {
             let store = ManagedSettingsStore()
             store.shield.applications = nil
             store.shield.applicationCategories = nil
+            store.shield.webDomainCategories = nil
             store.shield.webDomains = nil
             print("[DOOMSCROLL] ✅ Shields cleared")
             
@@ -997,34 +1132,96 @@ struct ContentView: View {
     private func clearShield() {
         print("[DOOMSCROLL] Clearing shield - apps now accessible")
         
-        let store = ManagedSettingsStore(named: ManagedSettingsStore.Name("doomscroll"))
+        // Use the DEFAULT store (same as startMonitoring)
+        let store = ManagedSettingsStore()
         store.shield.applications = nil
         store.shield.applicationCategories = nil
+        store.shield.webDomainCategories = nil
+        store.shield.webDomains = nil
+        
+        // Stop DeviceActivity monitoring to trigger visual refresh
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([DeviceActivityName("doomscrollProtection"), DeviceActivityName("doomscrollDelayedBlock")])
         
         if let suite = UserDefaults(suiteName: appGroupIdentifier) {
             suite.set(0, forKey: "blockStartTime")
+            suite.set(0, forKey: "allowanceStartTime")
             suite.synchronize()
         }
         
+        // Cancel any pending notifications
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        
         stopShieldCheckTimer()
         remainingSeconds = 0
+        allowanceSeconds = 0
         print("[DOOMSCROLL] ✓ Shield cleared - apps accessible")
     }
     
     private func updateCountdown() {
-        guard let suite = UserDefaults(suiteName: appGroupIdentifier) else { return }
-        
-        let blockStartTime = suite.double(forKey: "blockStartTime")
-        guard blockStartTime > 0 else {
-            remainingSeconds = 0
+        guard let suite = UserDefaults(suiteName: appGroupIdentifier) else {
+            print("[DOOMSCROLL] ⚠️ Cannot access App Group in updateCountdown")
             return
         }
         
         let currentTime = Date().timeIntervalSince1970
+        
+        // Check for allowance time (delayed mode only)
+        let allowanceStartTime = suite.double(forKey: "allowanceStartTime")
+        if allowanceStartTime > 0 {
+            let elapsedAllowance = currentTime - allowanceStartTime
+            let remainingAllowance = max(0, 300 - Int(elapsedAllowance))
+            
+            if remainingAllowance > 0 {
+                // Still in allowance period
+                allowanceSeconds = remainingAllowance
+                remainingSeconds = 0
+                return
+            } else if remainingAllowance == 0 && suite.double(forKey: "blockStartTime") == 0 {
+                // Allowance just expired - apply shield and start block
+                print("[DOOMSCROLL] ⏰ 5-minute allowance expired - applying shield")
+                
+                allowanceSeconds = 0
+                
+                // Apply shield
+                if let data = suite.data(forKey: "selectedApp"),
+                   let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+                    let store = ManagedSettingsStore()
+                    store.shield.applications = selection.applicationTokens
+                    if !selection.categoryTokens.isEmpty {
+                        store.shield.applicationCategories = .specific(selection.categoryTokens)
+                    }
+                    if !selection.webDomainTokens.isEmpty {
+                        store.shield.webDomains = selection.webDomainTokens
+                    }
+                    print("[DOOMSCROLL] ✅ Shield applied after allowance")
+                }
+                
+                // Set block start time
+                let blockStartTime = currentTime
+                suite.set(blockStartTime, forKey: "blockStartTime")
+                suite.set(0, forKey: "allowanceStartTime")  // Clear allowance
+                suite.synchronize()
+                print("[DOOMSCROLL] ✅ Block started at: \(blockStartTime)")
+                
+                remainingSeconds = 300  // Start 5-minute block
+                return
+            }
+        }
+        
+        // Update block countdown (for both modes when block is active)
+        let blockStartTime = suite.double(forKey: "blockStartTime")
+        guard blockStartTime > 0 else {
+            remainingSeconds = 0
+            allowanceSeconds = 0
+            return
+        }
+        
         let elapsedSeconds = currentTime - blockStartTime
         let remaining = max(0, 300 - Int(elapsedSeconds))
         
         remainingSeconds = remaining
+        allowanceSeconds = 0
     }
     
     private func formatTime(_ seconds: Int) -> String {
@@ -1095,6 +1292,37 @@ struct ContentView: View {
             } else {
                 print("[DOOMSCROLL] ✅ Notification scheduled for 5 minutes from now")
                 print("[DOOMSCROLL] 📊 This should trigger iOS to refresh home screen state")
+            }
+        }
+    }
+    
+    private func scheduleShieldApplication() {
+        print("[DOOMSCROLL] 📊 Scheduling shield application for 5 minutes (background task)")
+        
+        // Cancel any existing shield notifications
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["doomscroll.apply.shield"])
+        
+        // Create silent notification that will trigger shield application
+        let content = UNMutableNotificationContent()
+        content.title = "Doomscroll Stopper"
+        content.body = "Time's up! App is now blocked for 5 minutes."
+        content.sound = .default
+        content.userInfo = ["action": "applyShield"]  // Custom data for handling
+        
+        // Trigger after 5 minutes
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 300, repeats: false)
+        
+        let request = UNNotificationRequest(
+            identifier: "doomscroll.apply.shield",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[DOOMSCROLL] ❌ Failed to schedule shield application: \(error)")
+            } else {
+                print("[DOOMSCROLL] ✅ Shield application scheduled for 5 minutes from now")
             }
         }
     }

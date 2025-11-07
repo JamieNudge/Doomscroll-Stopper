@@ -1,0 +1,12 @@
+Improve break complete notification message
+
+- Changed notification to be neutral for apps and websites
+- Old: "Apps are now accessible"
+- New: "Your break is complete! Ready to go another 5 minutes?"
+- Message now encourages renewal and works for all content types
+- Tested and confirmed working
+- Build timestamp: 2025-10-31 13:25:00
+
+
+
+

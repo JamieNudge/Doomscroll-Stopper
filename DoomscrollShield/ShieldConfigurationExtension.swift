@@ -70,22 +70,38 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             center.stopMonitoring([DeviceActivityName("doomscrollProtection")])
             print("[SHIELD] ✅ Monitoring stopped - iOS should refresh icon states now")
             
-            // Mark as cleared and signal main app to restart monitoring
+            // Mark as cleared and signal main app to update state
             suite?.set(0, forKey: "blockStartTime")
             suite?.set(true, forKey: "restartMonitoring")
             suite?.synchronize()
             print("[SHIELD] ✅ blockStartTime reset to 0 in App Group")
-            print("[SHIELD] 📊 Signaled main app to restart monitoring for next cycle")
+            print("[SHIELD] 📊 Signaled main app to update state")
             
             print("[SHIELD] ✅ Shield cleared and monitoring stopped - apps now accessible")
             print("[SHIELD] 📊 Apps should now appear UNBLOCKED in home screen")
             print("[SHIELD] 📊 ========================================")
             
-            // Return a minimal config (won't be shown since shield is cleared)
+            // Show a "cleared" message with dismissible button
+            // The shield is now removed, so next access attempt will succeed
+            let title = ShieldConfiguration.Label(
+                text: "Break complete! 🌱",
+                color: .label
+            )
+            
+            let subtitle = ShieldConfiguration.Label(
+                text: "Your 5-minute break is over. The block has been removed.\n\nTap OK and try again!",
+                color: .secondaryLabel
+            )
+            
+            let primaryButton = ShieldConfiguration.Label(
+                text: "OK",
+                color: .white
+            )
+            
             return ShieldConfiguration(
-                title: ShieldConfiguration.Label(text: "Cleared", color: .label),
-                subtitle: nil,
-                primaryButtonLabel: nil,
+                title: title,
+                subtitle: subtitle,
+                primaryButtonLabel: primaryButton,
                 secondaryButtonLabel: nil
             )
         }
